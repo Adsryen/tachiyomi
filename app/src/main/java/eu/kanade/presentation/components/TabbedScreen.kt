@@ -1,37 +1,45 @@
 package eu.kanade.presentation.components
 
-import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.res.stringResource
-import eu.kanade.tachiyomi.widget.TachiyomiBottomNavigationView
+import androidx.compose.ui.zIndex
+import dev.icerock.moko.resources.StringResource
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.launch
+import tachiyomi.presentation.core.components.HorizontalPager
+import tachiyomi.presentation.core.components.material.Scaffold
+import tachiyomi.presentation.core.components.material.TabText
+import tachiyomi.presentation.core.i18n.stringResource
 
 @Composable
 fun TabbedScreen(
-    @StringRes titleRes: Int,
-    tabs: List<TabContent>,
+    titleRes: StringResource,
+    tabs: ImmutableList<TabContent>,
     startIndex: Int? = null,
     searchQuery: String? = null,
     onChangeSearchQuery: (String?) -> Unit = {},
-    incognitoMode: Boolean,
-    downloadedOnlyMode: Boolean,
 ) {
     val scope = rememberCoroutineScope()
-    val state = rememberPagerState()
+    val state = rememberPagerState { tabs.size }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(startIndex) {
         if (startIndex != null) {
@@ -52,6 +60,7 @@ fun TabbedScreen(
                 actions = { AppBarActions(tab.actions) },
             )
         },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
     ) { contentPadding ->
         Column(
             modifier = Modifier.padding(
@@ -60,9 +69,9 @@ fun TabbedScreen(
                 end = contentPadding.calculateEndPadding(LocalLayoutDirection.current),
             ),
         ) {
-            TabRow(
+            PrimaryTabRow(
                 selectedTabIndex = state.currentPage,
-                indicator = { TabIndicator(it[state.currentPage]) },
+                modifier = Modifier.zIndex(1f),
             ) {
                 tabs.forEachIndexed { index, tab ->
                     Tab(
@@ -74,18 +83,14 @@ fun TabbedScreen(
                 }
             }
 
-            AppStateBanners(downloadedOnlyMode, incognitoMode)
-
             HorizontalPager(
-                count = tabs.size,
                 modifier = Modifier.fillMaxSize(),
                 state = state,
                 verticalAlignment = Alignment.Top,
             ) { page ->
                 tabs[page].content(
-                    TachiyomiBottomNavigationView.withBottomNavPadding(
-                        PaddingValues(bottom = contentPadding.calculateBottomPadding()),
-                    ),
+                    PaddingValues(bottom = contentPadding.calculateBottomPadding()),
+                    snackbarHostState,
                 )
             }
         }
@@ -93,9 +98,9 @@ fun TabbedScreen(
 }
 
 data class TabContent(
-    @StringRes val titleRes: Int,
+    val titleRes: StringResource,
     val badgeNumber: Int? = null,
     val searchEnabled: Boolean = false,
-    val actions: List<AppBar.Action> = emptyList(),
-    val content: @Composable (contentPadding: PaddingValues) -> Unit,
+    val actions: ImmutableList<AppBar.AppBarAction> = persistentListOf(),
+    val content: @Composable (contentPadding: PaddingValues, snackbarHostState: SnackbarHostState) -> Unit,
 )

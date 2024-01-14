@@ -1,35 +1,38 @@
 package eu.kanade.tachiyomi.data.track.kavita
 
-import android.app.Application
-import android.content.Context
-import android.content.SharedPreferences
 import android.graphics.Color
-import androidx.annotation.StringRes
+import dev.icerock.moko.resources.StringResource
 import eu.kanade.tachiyomi.R
-import eu.kanade.tachiyomi.data.database.models.Manga
 import eu.kanade.tachiyomi.data.database.models.Track
-import eu.kanade.tachiyomi.data.track.EnhancedTrackService
-import eu.kanade.tachiyomi.data.track.NoLoginTrackService
-import eu.kanade.tachiyomi.data.track.TrackService
+import eu.kanade.tachiyomi.data.track.BaseTracker
+import eu.kanade.tachiyomi.data.track.EnhancedTracker
 import eu.kanade.tachiyomi.data.track.model.TrackSearch
+import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.Source
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
+import eu.kanade.tachiyomi.source.sourcePreferences
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
+import tachiyomi.domain.manga.model.Manga
+import tachiyomi.domain.source.service.SourceManager
+import tachiyomi.i18n.MR
+import uy.kohesive.injekt.injectLazy
 import java.security.MessageDigest
+import tachiyomi.domain.track.model.Track as DomainTrack
 
-class Kavita(private val context: Context, id: Long) : TrackService(id), EnhancedTrackService, NoLoginTrackService {
-    var authentications: OAuth? = null
+class Kavita(id: Long) : BaseTracker(id, "Kavita"), EnhancedTracker {
+
     companion object {
         const val UNREAD = 1
         const val READING = 2
         const val COMPLETED = 3
     }
 
+    var authentications: OAuth? = null
+
     private val interceptor by lazy { KavitaInterceptor(this) }
     val api by lazy { KavitaApi(client, interceptor) }
 
-    @StringRes
-    override fun nameRes() = R.string.tracker_kavita
+    private val sourceManager: SourceManager by injectLazy()
 
     override fun getLogo(): Int = R.drawable.ic_tracker_kavita
 
@@ -37,24 +40,22 @@ class Kavita(private val context: Context, id: Long) : TrackService(id), Enhance
 
     override fun getStatusList() = listOf(UNREAD, READING, COMPLETED)
 
-    override fun getStatus(status: Int): String = with(context) {
-        when (status) {
-            Kavita.UNREAD -> getString(R.string.unread)
-            Kavita.READING -> getString(R.string.reading)
-            Kavita.COMPLETED -> getString(R.string.completed)
-            else -> ""
-        }
+    override fun getStatus(status: Int): StringResource? = when (status) {
+        UNREAD -> MR.strings.unread
+        READING -> MR.strings.reading
+        COMPLETED -> MR.strings.completed
+        else -> null
     }
 
-    override fun getReadingStatus(): Int = Kavita.READING
+    override fun getReadingStatus(): Int = READING
 
     override fun getRereadingStatus(): Int = -1
 
-    override fun getCompletionStatus(): Int = Kavita.COMPLETED
+    override fun getCompletionStatus(): Int = COMPLETED
 
-    override fun getScoreList(): List<String> = emptyList()
+    override fun getScoreList(): ImmutableList<String> = persistentListOf()
 
-    override fun displayScore(track: Track): String = ""
+    override fun displayScore(track: DomainTrack): String = ""
 
     override suspend fun update(track: Track, didReadChapter: Boolean): Track {
         if (track.status != COMPLETED) {
@@ -88,7 +89,7 @@ class Kavita(private val context: Context, id: Long) : TrackService(id), Enhance
         saveCredentials("user", "pass")
     }
 
-    // TrackService.isLogged works by checking that credentials are saved.
+    // [Tracker].isLogged works by checking that credentials are saved.
     // By saving dummy, unused credentials, we can activate the tracker simply by login/logout
     override fun loginNoop() {
         saveCredentials("user", "pass")
@@ -103,10 +104,10 @@ class Kavita(private val context: Context, id: Long) : TrackService(id), Enhance
             null
         }
 
-    override fun isTrackFrom(track: eu.kanade.domain.track.model.Track, manga: eu.kanade.domain.manga.model.Manga, source: Source?): Boolean =
+    override fun isTrackFrom(track: DomainTrack, manga: Manga, source: Source?): Boolean =
         track.remoteUrl == manga.url && source?.let { accept(it) } == true
 
-    override fun migrateTrack(track: eu.kanade.domain.track.model.Track, manga: eu.kanade.domain.manga.model.Manga, newSource: Source): eu.kanade.domain.track.model.Track? =
+    override fun migrateTrack(track: DomainTrack, manga: Manga, newSource: Source): DomainTrack? =
         if (accept(newSource)) {
             track.copy(remoteUrl = manga.url)
         } else {
@@ -115,29 +116,29 @@ class Kavita(private val context: Context, id: Long) : TrackService(id), Enhance
 
     fun loadOAuth() {
         val oauth = OAuth()
-        for (sourceId in 1..3) {
-            val authentication = oauth.authentications[sourceId - 1]
-            val sourceSuffixID by lazy {
-                val key = "${"kavita_$sourceId"}/all/1" // Hardcoded versionID to 1
+        for (id in 1..3) {
+            val authentication = oauth.authentications[id - 1]
+            val sourceId by lazy {
+                val key = "kavita_$id/all/1" // Hardcoded versionID to 1
                 val bytes = MessageDigest.getInstance("MD5").digest(key.toByteArray())
                 (0..7).map { bytes[it].toLong() and 0xff shl 8 * (7 - it) }
                     .reduce(Long::or) and Long.MAX_VALUE
             }
-            val preferences: SharedPreferences by lazy {
-                Injekt.get<Application>().getSharedPreferences("source_$sourceSuffixID", 0x0000)
-            }
-            val prefApiUrl = preferences.getString("APIURL", "")!!
-            if (prefApiUrl.isEmpty()) {
+            val preferences = (sourceManager.get(sourceId) as ConfigurableSource).sourcePreferences()
+
+            val prefApiUrl = preferences.getString("APIURL", "")
+            val prefApiKey = preferences.getString("APIKEY", "")
+            if (prefApiUrl.isNullOrEmpty() || prefApiKey.isNullOrEmpty()) {
                 // Source not configured. Skip
                 continue
             }
-            val prefApiKey = preferences.getString("APIKEY", "")!!
-            val token = api.getNewToken(apiUrl = prefApiUrl, apiKey = prefApiKey)
 
+            val token = api.getNewToken(apiUrl = prefApiUrl, apiKey = prefApiKey)
             if (token.isNullOrEmpty()) {
                 // Source is not accessible. Skip
                 continue
             }
+
             authentication.apiUrl = prefApiUrl
             authentication.jwtToken = token.toString()
         }

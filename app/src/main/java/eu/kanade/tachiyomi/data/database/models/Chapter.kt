@@ -2,7 +2,7 @@ package eu.kanade.tachiyomi.data.database.models
 
 import eu.kanade.tachiyomi.source.model.SChapter
 import java.io.Serializable
-import eu.kanade.domain.chapter.model.Chapter as DomainChapter
+import tachiyomi.domain.chapter.model.Chapter as DomainChapter
 
 interface Chapter : SChapter, Serializable {
 
@@ -20,11 +20,7 @@ interface Chapter : SChapter, Serializable {
 
     var source_order: Int
 
-    companion object {
-        fun create(): Chapter = ChapterImpl().apply {
-            chapter_number = -1f
-        }
-    }
+    var last_modified: Long
 }
 
 fun Chapter.toDomainChapter(): DomainChapter? {
@@ -40,7 +36,8 @@ fun Chapter.toDomainChapter(): DomainChapter? {
         url = url,
         name = name,
         dateUpload = date_upload,
-        chapterNumber = chapter_number,
+        chapterNumber = chapter_number.toDouble(),
         scanlator = scanlator,
+        lastModifiedAt = last_modified,
     )
 }

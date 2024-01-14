@@ -1,18 +1,18 @@
 package eu.kanade.tachiyomi.util
 
-import android.content.Context
-import eu.kanade.domain.download.service.DownloadPreferences
 import eu.kanade.domain.manga.interactor.UpdateManga
-import eu.kanade.domain.manga.model.Manga
 import eu.kanade.domain.manga.model.hasCustomCover
-import eu.kanade.domain.manga.model.isLocal
+import eu.kanade.domain.manga.model.toSManga
 import eu.kanade.tachiyomi.data.cache.CoverCache
-import eu.kanade.tachiyomi.source.LocalSource
 import eu.kanade.tachiyomi.source.model.SManga
+import tachiyomi.domain.download.service.DownloadPreferences
+import tachiyomi.domain.manga.model.Manga
+import tachiyomi.source.local.image.LocalCoverManager
+import tachiyomi.source.local.isLocal
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.io.InputStream
-import java.util.Date
+import java.time.Instant
 
 /**
  * Call before updating [Manga.thumbnail_url] to ensure old cover can be cleared from cache
@@ -28,7 +28,7 @@ fun Manga.prepUpdateCover(coverCache: CoverCache, remoteManga: SManga, refreshSa
 
     return when {
         isLocal() -> {
-            this.copy(coverLastModified = Date().time)
+            this.copy(coverLastModified = Instant.now().toEpochMilli())
         }
         hasCustomCover(coverCache) -> {
             coverCache.deleteFromCache(this, false)
@@ -36,7 +36,7 @@ fun Manga.prepUpdateCover(coverCache: CoverCache, remoteManga: SManga, refreshSa
         }
         else -> {
             coverCache.deleteFromCache(this, false)
-            this.copy(coverLastModified = Date().time)
+            this.copy(coverLastModified = Instant.now().toEpochMilli())
         }
     }
 }
@@ -44,7 +44,7 @@ fun Manga.prepUpdateCover(coverCache: CoverCache, remoteManga: SManga, refreshSa
 fun Manga.removeCovers(coverCache: CoverCache = Injekt.get()): Manga {
     if (isLocal()) return this
     return if (coverCache.deleteFromCache(this, true) > 0) {
-        return copy(coverLastModified = Date().time)
+        return copy(coverLastModified = Instant.now().toEpochMilli())
     } else {
         this
     }
@@ -76,13 +76,13 @@ fun Manga.shouldDownloadNewChapters(dbCategories: List<Long>, preferences: Downl
 }
 
 suspend fun Manga.editCover(
-    context: Context,
+    coverManager: LocalCoverManager,
     stream: InputStream,
     updateManga: UpdateManga = Injekt.get(),
     coverCache: CoverCache = Injekt.get(),
 ) {
     if (isLocal()) {
-        LocalSource.updateCover(context, toSManga(), stream)
+        coverManager.update(toSManga(), stream)
         updateManga.awaitUpdateCoverLastModified(id)
     } else if (favorite) {
         coverCache.setCustomCoverToCache(this, stream)

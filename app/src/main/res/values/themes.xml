@@ -58,25 +58,19 @@
         <item name="android:enforceStatusBarContrast" tools:targetApi="Q">false</item>
         <item name="android:itemTextAppearance">@style/TextAppearance.Widget.Menu</item>
         <item name="materialAlertDialogTheme">@style/ThemeOverlay.Tachiyomi.MaterialAlertDialog</item>
+        <item name="alertDialogTheme">@style/ThemeOverlay.Tachiyomi.MaterialAlertDialog</item>
         <item name="textAppearanceButton">@style/TextAppearance.Widget.Button</item>
         <item name="android:buttonStyle">?attr/borderlessButtonStyle</item>
         <item name="android:backgroundDimAmount">0.32</item>
         <item name="windowActionModeOverlay">true</item>
         <item name="actionOverflowButtonStyle">@style/Theme.Tachiyomi.ActionButton.Overflow</item>
-        <item name="actionModeCloseButtonStyle">@style/Theme.Tachiyomi.ActionMode.CloseButton</item>
-        <item name="actionModeCloseDrawable">@drawable/ic_close_24dp</item>
         <item name="preferenceTheme">@style/PreferenceThemeOverlay.Tachiyomi</item>
-        <item name="bottomSheetDialogTheme">@style/ThemeOverlay.Tachiyomi.BottomSheetDialog</item>
         <item name="textInputStyle">@style/Widget.Material3.TextInputLayout.OutlinedBox</item>
         <item name="appBarLayoutStyle">@style/Widget.Material3.AppBarLayout</item>
         <item name="toolbarStyle">@style/Widget.Material3.Toolbar.Surface</item>
-        <item name="tabStyle">@style/Widget.Tachiyomi.TabLayout</item>
-        <item name="bottomNavigationStyle">@style/Widget.Tachiyomi.BottomNavigationView</item>
-        <item name="navigationRailStyle">@style/Widget.Tachiyomi.NavigationRailView</item>
         <item name="switchStyle">@style/Widget.Tachiyomi.Switch</item>
         <item name="materialSwitchStyle">@style/Widget.Material3.CompoundButton.MaterialSwitch</item>
         <item name="switchPreferenceCompatStyle">@style/Widget.Tachiyomi.Switch</item>
-        <item name="sliderStyle">@style/Widget.Tachiyomi.Slider</item>
         <item name="materialCardViewStyle">@style/Widget.Material3.CardView.Elevated</item>
 
         <!-- Preference text appearance -->
@@ -339,6 +333,37 @@
         <item name="colorPrimaryInverse">@color/tidalwave_primaryInverse</item>
     </style>
 
+    <!--== Nord Theme ==-->
+    <style name="Theme.Tachiyomi.Nord">
+        <!-- Theme Colors -->
+        <item name="colorPrimary">@color/nord_primary</item>
+        <item name="colorOnPrimary">@color/nord_onPrimary</item>
+        <item name="colorPrimaryContainer">@color/nord_primaryContainer</item>
+        <item name="colorOnPrimaryContainer">@color/nord_onPrimaryContainer</item>
+        <item name="colorSecondary">@color/nord_secondary</item>
+        <item name="colorOnSecondary">@color/nord_onSecondary</item>
+        <item name="colorSecondaryContainer">@color/nord_secondaryContainer</item>
+        <item name="colorOnSecondaryContainer">@color/nord_onSecondaryContainer</item>
+        <item name="colorTertiary">@color/nord_tertiary</item>
+        <item name="colorOnTertiary">@color/nord_onTertiary</item>
+        <item name="colorTertiaryContainer">@color/nord_tertiaryContainer</item>
+        <item name="colorOnTertiaryContainer">@color/nord_onTertiaryContainer</item>
+        <item name="android:colorBackground">@color/nord_background</item>
+        <item name="colorOnBackground">@color/nord_onBackground</item>
+        <item name="colorSurface">@color/nord_surface</item>
+        <item name="colorOnSurface">@color/nord_onSurface</item>
+        <item name="colorSurfaceVariant">@color/nord_surfaceVariant</item>
+        <item name="colorOnSurfaceVariant">@color/nord_onSurfaceVariant</item>
+        <item name="colorOutline">@color/nord_outline</item>
+        <item name="colorOnSurfaceInverse">@color/nord_inverseOnSurface</item>
+        <item name="colorSurfaceInverse">@color/nord_inverseSurface</item>
+        <item name="colorPrimaryInverse">@color/nord_primaryInverse</item>
+        <item name="colorOnError">@color/nord_onError</item>
+        <item name="colorErrorContainer">@color/nord_errorContainer</item>
+        <item name="colorOnErrorContainer">@color/nord_onErrorContainer</item>
+        <item name="elevationOverlayColor">@color/nord_elevationOverlay</item>
+    </style>
+    
     <!--== AMOLED Mode Overlay ==-->
     <style name="ThemeOverlay.Tachiyomi.Amoled" parent="" />
 

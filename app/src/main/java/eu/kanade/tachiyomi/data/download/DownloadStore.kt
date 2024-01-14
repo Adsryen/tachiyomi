@@ -2,39 +2,34 @@ package eu.kanade.tachiyomi.data.download
 
 import android.content.Context
 import androidx.core.content.edit
-import eu.kanade.domain.chapter.interactor.GetChapter
-import eu.kanade.domain.chapter.model.toDbChapter
-import eu.kanade.domain.manga.interactor.GetManga
-import eu.kanade.domain.manga.model.Manga
 import eu.kanade.tachiyomi.data.download.model.Download
-import eu.kanade.tachiyomi.source.SourceManager
 import eu.kanade.tachiyomi.source.online.HttpSource
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import uy.kohesive.injekt.injectLazy
+import tachiyomi.domain.chapter.interactor.GetChapter
+import tachiyomi.domain.manga.interactor.GetManga
+import tachiyomi.domain.manga.model.Manga
+import tachiyomi.domain.source.service.SourceManager
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 
 /**
  * This class is used to persist active downloads across application restarts.
- *
- * @param context the application context.
  */
 class DownloadStore(
     context: Context,
-    private val sourceManager: SourceManager,
+    private val sourceManager: SourceManager = Injekt.get(),
+    private val json: Json = Injekt.get(),
+    private val getManga: GetManga = Injekt.get(),
+    private val getChapter: GetChapter = Injekt.get(),
 ) {
 
     /**
      * Preference file where active downloads are stored.
      */
     private val preferences = context.getSharedPreferences("active_downloads", Context.MODE_PRIVATE)
-
-    private val json: Json by injectLazy()
-
-    private val getManga: GetManga by injectLazy()
-    private val getChapter: GetChapter by injectLazy()
 
     /**
      * Counter used to keep the queue order.
@@ -64,6 +59,17 @@ class DownloadStore(
     }
 
     /**
+     * Removes a list of downloads from the store.
+     *
+     * @param downloads the download to remove.
+     */
+    fun removeAll(downloads: List<Download>) {
+        preferences.edit {
+            downloads.forEach { remove(getKey(it)) }
+        }
+    }
+
+    /**
      * Removes all the downloads from the store.
      */
     fun clear() {
@@ -78,7 +84,7 @@ class DownloadStore(
      * @param download the download.
      */
     private fun getKey(download: Download): String {
-        return download.chapter.id!!.toString()
+        return download.chapter.id.toString()
     }
 
     /**
@@ -98,7 +104,7 @@ class DownloadStore(
                     runBlocking { getManga.await(mangaId) }
                 } ?: continue
                 val source = sourceManager.get(manga.source) as? HttpSource ?: continue
-                val chapter = runBlocking { getChapter.await(chapterId) }?.toDbChapter() ?: continue
+                val chapter = runBlocking { getChapter.await(chapterId) } ?: continue
                 downloads.add(Download(source, manga, chapter))
             }
         }
@@ -114,7 +120,7 @@ class DownloadStore(
      * @param download the download to serialize.
      */
     private fun serialize(download: Download): String {
-        val obj = DownloadObject(download.manga.id, download.chapter.id!!, counter++)
+        val obj = DownloadObject(download.manga.id, download.chapter.id, counter++)
         return json.encodeToString(obj)
     }
 
@@ -130,14 +136,14 @@ class DownloadStore(
             null
         }
     }
-
-    /**
-     * Class used for download serialization
-     *
-     * @param mangaId the id of the manga.
-     * @param chapterId the id of the chapter.
-     * @param order the order of the download in the queue.
-     */
-    @Serializable
-    data class DownloadObject(val mangaId: Long, val chapterId: Long, val order: Int)
 }
+
+/**
+ * Class used for download serialization
+ *
+ * @param mangaId the id of the manga.
+ * @param chapterId the id of the chapter.
+ * @param order the order of the download in the queue.
+ */
+@Serializable
+private data class DownloadObject(val mangaId: Long, val chapterId: Long, val order: Int)

@@ -7,12 +7,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Edit
@@ -31,8 +29,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -40,15 +39,20 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.view.updatePadding
 import coil.imageLoader
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.size.Size
-import eu.kanade.domain.manga.model.Manga
+import eu.kanade.presentation.components.AppBar
+import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.components.DropdownMenu
-import eu.kanade.presentation.components.Scaffold
 import eu.kanade.presentation.manga.EditCoverAction
-import eu.kanade.presentation.util.clickableNoIndication
-import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.ui.reader.viewer.ReaderPageImageView
+import kotlinx.collections.immutable.persistentListOf
+import tachiyomi.domain.manga.model.Manga
+import tachiyomi.i18n.MR
+import tachiyomi.presentation.core.components.material.Scaffold
+import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.util.clickableNoIndication
 
 @Composable
 fun MangaCoverDialog(
@@ -69,81 +73,87 @@ fun MangaCoverDialog(
     ) {
         Scaffold(
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+            containerColor = Color.Transparent,
             bottomBar = {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(color = MaterialTheme.colorScheme.background.copy(alpha = 0.9f))
-                        .padding(horizontal = 4.dp, vertical = 4.dp)
+                        .padding(4.dp)
                         .navigationBarsPadding(),
                 ) {
-                    IconButton(onClick = onDismissRequest) {
-                        Icon(
-                            imageVector = Icons.Outlined.Close,
-                            contentDescription = stringResource(R.string.action_close),
-                        )
+                    ActionsPill {
+                        IconButton(onClick = onDismissRequest) {
+                            Icon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = stringResource(MR.strings.action_close),
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = onShareClick) {
-                        Icon(
-                            imageVector = Icons.Outlined.Share,
-                            contentDescription = stringResource(R.string.action_share),
+                    ActionsPill {
+                        AppBarActions(
+                            actions = persistentListOf(
+                                AppBar.Action(
+                                    title = stringResource(MR.strings.action_share),
+                                    icon = Icons.Outlined.Share,
+                                    onClick = onShareClick,
+                                ),
+                                AppBar.Action(
+                                    title = stringResource(MR.strings.action_save),
+                                    icon = Icons.Outlined.Save,
+                                    onClick = onSaveClick,
+                                ),
+                            ),
                         )
-                    }
-                    IconButton(onClick = onSaveClick) {
-                        Icon(
-                            imageVector = Icons.Outlined.Save,
-                            contentDescription = stringResource(R.string.action_save),
-                        )
-                    }
-                    if (onEditClick != null) {
-                        Box {
-                            var expanded by remember { mutableStateOf(false) }
-                            IconButton(
-                                onClick = {
-                                    if (isCustomCover) {
-                                        expanded = true
-                                    } else {
-                                        onEditClick(EditCoverAction.EDIT)
-                                    }
-                                },
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Edit,
-                                    contentDescription = stringResource(R.string.action_edit_cover),
-                                )
-                            }
-                            DropdownMenu(
-                                expanded = expanded,
-                                onDismissRequest = { expanded = false },
-                                offset = DpOffset(8.dp, 0.dp),
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text(text = stringResource(R.string.action_edit)) },
+                        if (onEditClick != null) {
+                            Box {
+                                var expanded by remember { mutableStateOf(false) }
+                                IconButton(
                                     onClick = {
-                                        onEditClick(EditCoverAction.EDIT)
-                                        expanded = false
+                                        if (isCustomCover) {
+                                            expanded = true
+                                        } else {
+                                            onEditClick(EditCoverAction.EDIT)
+                                        }
                                     },
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(text = stringResource(R.string.action_delete)) },
-                                    onClick = {
-                                        onEditClick(EditCoverAction.DELETE)
-                                        expanded = false
-                                    },
-                                )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Edit,
+                                        contentDescription = stringResource(MR.strings.action_edit_cover),
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false },
+                                    offset = DpOffset(8.dp, 0.dp),
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(text = stringResource(MR.strings.action_edit)) },
+                                        onClick = {
+                                            onEditClick(EditCoverAction.EDIT)
+                                            expanded = false
+                                        },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(text = stringResource(MR.strings.action_delete)) },
+                                        onClick = {
+                                            onEditClick(EditCoverAction.DELETE)
+                                            expanded = false
+                                        },
+                                    )
+                                }
                             }
                         }
                     }
                 }
             },
         ) { contentPadding ->
-            val statusBarPaddingPx = WindowInsets.systemBars.getTop(LocalDensity.current)
+            val statusBarPaddingPx = with(LocalDensity.current) { contentPadding.calculateTopPadding().roundToPx() }
             val bottomPaddingPx = with(LocalDensity.current) { contentPadding.calculateBottomPadding().roundToPx() }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(color = MaterialTheme.colorScheme.background)
                     .clickableNoIndication(onClick = onDismissRequest),
             ) {
                 AndroidView(
@@ -158,6 +168,7 @@ fun MangaCoverDialog(
                         val request = ImageRequest.Builder(view.context)
                             .data(coverDataProvider())
                             .size(Size.ORIGINAL)
+                            .memoryCachePolicy(CachePolicy.DISABLED)
                             .target { drawable ->
                                 // Copy bitmap in case it came from memory cache
                                 // Because SSIV needs to thoroughly read the image
@@ -183,5 +194,16 @@ fun MangaCoverDialog(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ActionsPill(content: @Composable () -> Unit) {
+    Row(
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.extraLarge)
+            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.95f)),
+    ) {
+        content()
     }
 }

@@ -11,38 +11,41 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.PreviewLightDark
+import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
-import eu.kanade.domain.history.model.HistoryWithRelations
-import eu.kanade.presentation.components.MangaCover
-import eu.kanade.presentation.util.horizontalPadding
-import eu.kanade.tachiyomi.R
+import eu.kanade.presentation.manga.components.MangaCover
+import eu.kanade.presentation.theme.TachiyomiPreviewTheme
+import eu.kanade.presentation.util.formatChapterNumber
 import eu.kanade.tachiyomi.util.lang.toTimestampString
-import java.text.DecimalFormat
-import java.text.DecimalFormatSymbols
+import tachiyomi.domain.history.model.HistoryWithRelations
+import tachiyomi.i18n.MR
+import tachiyomi.presentation.core.components.material.padding
+import tachiyomi.presentation.core.i18n.stringResource
 
-private val HISTORY_ITEM_HEIGHT = 96.dp
+private val HistoryItemHeight = 96.dp
 
 @Composable
 fun HistoryItem(
-    modifier: Modifier = Modifier,
     history: HistoryWithRelations,
     onClickCover: () -> Unit,
     onClickResume: () -> Unit,
     onClickDelete: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier
             .clickable(onClick = onClickResume)
-            .height(HISTORY_ITEM_HEIGHT)
-            .padding(horizontal = horizontalPadding, vertical = 8.dp),
+            .height(HistoryItemHeight)
+            .padding(horizontal = MaterialTheme.padding.medium, vertical = MaterialTheme.padding.small),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         MangaCover.Book(
@@ -53,7 +56,7 @@ fun HistoryItem(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(start = horizontalPadding, end = 8.dp),
+                .padding(start = MaterialTheme.padding.medium, end = MaterialTheme.padding.small),
         ) {
             val textStyle = MaterialTheme.typography.bodyMedium
             Text(
@@ -67,8 +70,8 @@ fun HistoryItem(
             Text(
                 text = if (history.chapterNumber > -1) {
                     stringResource(
-                        R.string.recent_manga_time,
-                        chapterFormatter.format(history.chapterNumber),
+                        MR.strings.recent_manga_time,
+                        formatChapterNumber(history.chapterNumber),
                         readAt,
                     )
                 } else {
@@ -82,14 +85,27 @@ fun HistoryItem(
         IconButton(onClick = onClickDelete) {
             Icon(
                 imageVector = Icons.Outlined.Delete,
-                contentDescription = stringResource(R.string.action_delete),
+                contentDescription = stringResource(MR.strings.action_delete),
                 tint = MaterialTheme.colorScheme.onSurface,
             )
         }
     }
 }
 
-private val chapterFormatter = DecimalFormat(
-    "#.###",
-    DecimalFormatSymbols().apply { decimalSeparator = '.' },
-)
+@PreviewLightDark
+@Composable
+private fun HistoryItemPreviews(
+    @PreviewParameter(HistoryWithRelationsProvider::class)
+    historyWithRelations: HistoryWithRelations,
+) {
+    TachiyomiPreviewTheme {
+        Surface {
+            HistoryItem(
+                history = historyWithRelations,
+                onClickCover = {},
+                onClickResume = {},
+                onClickDelete = {},
+            )
+        }
+    }
+}

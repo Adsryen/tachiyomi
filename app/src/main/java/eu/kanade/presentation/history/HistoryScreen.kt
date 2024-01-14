@@ -1,35 +1,39 @@
 package eu.kanade.presentation.history
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DeleteSweep
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import eu.kanade.domain.history.model.HistoryWithRelations
+import androidx.compose.ui.tooling.preview.PreviewLightDark
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import eu.kanade.presentation.components.AppBar
+import eu.kanade.presentation.components.AppBarActions
 import eu.kanade.presentation.components.AppBarTitle
-import eu.kanade.presentation.components.EmptyScreen
-import eu.kanade.presentation.components.LoadingScreen
-import eu.kanade.presentation.components.Scaffold
 import eu.kanade.presentation.components.SearchToolbar
-import eu.kanade.presentation.history.components.HistoryContent
-import eu.kanade.tachiyomi.R
+import eu.kanade.presentation.components.relativeDateText
+import eu.kanade.presentation.history.components.HistoryItem
+import eu.kanade.presentation.theme.TachiyomiPreviewTheme
 import eu.kanade.tachiyomi.ui.history.HistoryScreenModel
-import eu.kanade.tachiyomi.ui.history.HistoryState
-import eu.kanade.tachiyomi.widget.TachiyomiBottomNavigationView
+import kotlinx.collections.immutable.persistentListOf
+import tachiyomi.domain.history.model.HistoryWithRelations
+import tachiyomi.i18n.MR
+import tachiyomi.presentation.core.components.FastScrollLazyColumn
+import tachiyomi.presentation.core.components.ListGroupHeader
+import tachiyomi.presentation.core.components.material.Scaffold
+import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.screens.EmptyScreen
+import tachiyomi.presentation.core.screens.LoadingScreen
 import java.util.Date
 
 @Composable
 fun HistoryScreen(
-    state: HistoryState,
+    state: HistoryScreenModel.State,
     snackbarHostState: SnackbarHostState,
-    incognitoMode: Boolean,
-    downloadedOnlyMode: Boolean,
     onSearchQueryChange: (String?) -> Unit,
     onClickCover: (mangaId: Long) -> Unit,
     onClickResume: (mangaId: Long, chapterId: Long) -> Unit,
@@ -38,35 +42,42 @@ fun HistoryScreen(
     Scaffold(
         topBar = { scrollBehavior ->
             SearchToolbar(
-                titleContent = { AppBarTitle(stringResource(R.string.history)) },
+                titleContent = { AppBarTitle(stringResource(MR.strings.history)) },
                 searchQuery = state.searchQuery,
                 onChangeSearchQuery = onSearchQueryChange,
                 actions = {
-                    IconButton(onClick = { onDialogChange(HistoryScreenModel.Dialog.DeleteAll) }) {
-                        Icon(
-                            Icons.Outlined.DeleteSweep,
-                            contentDescription = stringResource(R.string.pref_clear_history),
-                        )
-                    }
+                    AppBarActions(
+                        persistentListOf(
+                            AppBar.Action(
+                                title = stringResource(MR.strings.pref_clear_history),
+                                icon = Icons.Outlined.DeleteSweep,
+                                onClick = {
+                                    onDialogChange(HistoryScreenModel.Dialog.DeleteAll)
+                                },
+                            ),
+                        ),
+                    )
                 },
-                downloadedOnlyMode = downloadedOnlyMode,
-                incognitoMode = incognitoMode,
                 scrollBehavior = scrollBehavior,
             )
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        contentWindowInsets = TachiyomiBottomNavigationView.withBottomNavInset(ScaffoldDefaults.contentWindowInsets),
     ) { contentPadding ->
         state.list.let {
             if (it == null) {
-                LoadingScreen(modifier = Modifier.padding(contentPadding))
+                LoadingScreen(Modifier.padding(contentPadding))
             } else if (it.isEmpty()) {
+                val msg = if (!state.searchQuery.isNullOrEmpty()) {
+                    MR.strings.no_results_found
+                } else {
+                    MR.strings.information_no_recent_manga
+                }
                 EmptyScreen(
-                    textResource = R.string.information_no_recent_manga,
+                    stringRes = msg,
                     modifier = Modifier.padding(contentPadding),
                 )
             } else {
-                HistoryContent(
+                HistoryScreenContent(
                     history = it,
                     contentPadding = contentPadding,
                     onClickCover = { history -> onClickCover(history.mangaId) },
@@ -78,7 +89,68 @@ fun HistoryScreen(
     }
 }
 
-sealed class HistoryUiModel {
-    data class Header(val date: Date) : HistoryUiModel()
-    data class Item(val item: HistoryWithRelations) : HistoryUiModel()
+@Composable
+private fun HistoryScreenContent(
+    history: List<HistoryUiModel>,
+    contentPadding: PaddingValues,
+    onClickCover: (HistoryWithRelations) -> Unit,
+    onClickResume: (HistoryWithRelations) -> Unit,
+    onClickDelete: (HistoryWithRelations) -> Unit,
+) {
+    FastScrollLazyColumn(
+        contentPadding = contentPadding,
+    ) {
+        items(
+            items = history,
+            key = { "history-${it.hashCode()}" },
+            contentType = {
+                when (it) {
+                    is HistoryUiModel.Header -> "header"
+                    is HistoryUiModel.Item -> "item"
+                }
+            },
+        ) { item ->
+            when (item) {
+                is HistoryUiModel.Header -> {
+                    ListGroupHeader(
+                        modifier = Modifier.animateItemPlacement(),
+                        text = relativeDateText(item.date),
+                    )
+                }
+                is HistoryUiModel.Item -> {
+                    val value = item.item
+                    HistoryItem(
+                        modifier = Modifier.animateItemPlacement(),
+                        history = value,
+                        onClickCover = { onClickCover(value) },
+                        onClickResume = { onClickResume(value) },
+                        onClickDelete = { onClickDelete(value) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+sealed interface HistoryUiModel {
+    data class Header(val date: Date) : HistoryUiModel
+    data class Item(val item: HistoryWithRelations) : HistoryUiModel
+}
+
+@PreviewLightDark
+@Composable
+internal fun HistoryScreenPreviews(
+    @PreviewParameter(HistoryScreenModelStateProvider::class)
+    historyState: HistoryScreenModel.State,
+) {
+    TachiyomiPreviewTheme {
+        HistoryScreen(
+            state = historyState,
+            snackbarHostState = SnackbarHostState(),
+            onSearchQueryChange = {},
+            onClickCover = {},
+            onClickResume = { _, _ -> run {} },
+            onDialogChange = {},
+        )
+    }
 }

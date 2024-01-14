@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -14,6 +15,7 @@ import androidx.compose.material.icons.rounded.CheckBox
 import androidx.compose.material.icons.rounded.CheckBoxOutlineBlank
 import androidx.compose.material.icons.rounded.DisabledByDefault
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -25,13 +27,11 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import eu.kanade.presentation.components.Divider
-import eu.kanade.presentation.components.LazyColumn
-import eu.kanade.presentation.util.isScrolledToEnd
-import eu.kanade.presentation.util.isScrolledToStart
-import eu.kanade.tachiyomi.R
+import tachiyomi.i18n.MR
+import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.util.isScrolledToEnd
+import tachiyomi.presentation.core.util.isScrolledToStart
 
 private enum class State {
     CHECKED, INVERSED, UNCHECKED
@@ -104,9 +104,9 @@ fun <T> TriStateListDialog(
                                     },
                                     contentDescription = stringResource(
                                         when (state) {
-                                            State.UNCHECKED -> R.string.not_selected
-                                            State.CHECKED -> R.string.selected
-                                            State.INVERSED -> R.string.disabled
+                                            State.UNCHECKED -> MR.strings.not_selected
+                                            State.CHECKED -> MR.strings.selected
+                                            State.INVERSED -> MR.strings.disabled
                                         },
                                     ),
                                 )
@@ -115,14 +115,22 @@ fun <T> TriStateListDialog(
                         }
                     }
 
-                    if (!listState.isScrolledToStart()) Divider(modifier = Modifier.align(Alignment.TopCenter))
-                    if (!listState.isScrolledToEnd()) Divider(modifier = Modifier.align(Alignment.BottomCenter))
+                    if (!listState.isScrolledToStart()) {
+                        HorizontalDivider(
+                            modifier = Modifier.align(Alignment.TopCenter),
+                        )
+                    }
+                    if (!listState.isScrolledToEnd()) {
+                        HorizontalDivider(
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                        )
+                    }
                 }
             }
         },
         dismissButton = {
             TextButton(onClick = onDismissRequest) {
-                Text(text = stringResource(R.string.action_cancel))
+                Text(text = stringResource(MR.strings.action_cancel))
             }
         },
         confirmButton = {
@@ -137,7 +145,7 @@ fun <T> TriStateListDialog(
                     onValueChanged(included, excluded)
                 },
             ) {
-                Text(text = stringResource(android.R.string.ok))
+                Text(text = stringResource(MR.strings.action_ok))
             }
         },
     )

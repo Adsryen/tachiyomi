@@ -1,6 +1,5 @@
 package eu.kanade.presentation.more.settings.screen
 
-import android.content.res.Resources
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -17,8 +16,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,24 +39,28 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import eu.kanade.presentation.components.Divider
-import eu.kanade.presentation.components.EmptyScreen
-import eu.kanade.presentation.components.Scaffold
+import eu.kanade.presentation.components.UpIcon
 import eu.kanade.presentation.more.settings.Preference
-import eu.kanade.tachiyomi.R
-import eu.kanade.tachiyomi.util.system.isLTR
+import eu.kanade.presentation.util.Screen
+import tachiyomi.i18n.MR
+import tachiyomi.presentation.core.components.material.Scaffold
+import tachiyomi.presentation.core.i18n.stringResource
+import tachiyomi.presentation.core.screens.EmptyScreen
+import tachiyomi.presentation.core.util.runOnEnterKeyPressed
+import cafe.adriel.voyager.core.screen.Screen as VoyagerScreen
 
-class SettingsSearchScreen : Screen {
+class SettingsSearchScreen : Screen() {
+
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
@@ -94,11 +97,7 @@ class SettingsSearchScreen : Screen {
                             val canPop = remember { navigator.canPop }
                             if (canPop) {
                                 IconButton(onClick = navigator::pop) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.ArrowBack,
-                                        contentDescription = stringResource(R.string.abc_action_bar_up_description),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
+                                    UpIcon()
                                 }
                             }
                         },
@@ -108,7 +107,8 @@ class SettingsSearchScreen : Screen {
                                 onValueChange = { textFieldValue = it },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .focusRequester(focusRequester),
+                                    .focusRequester(focusRequester)
+                                    .runOnEnterKeyPressed(action = focusManager::clearFocus),
                                 textStyle = MaterialTheme.typography.bodyLarge
                                     .copy(color = MaterialTheme.colorScheme.onSurface),
                                 singleLine = true,
@@ -118,7 +118,7 @@ class SettingsSearchScreen : Screen {
                                 decorationBox = {
                                     if (textFieldValue.text.isEmpty()) {
                                         Text(
-                                            text = stringResource(R.string.action_search_settings),
+                                            text = stringResource(MR.strings.action_search_settings),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             style = MaterialTheme.typography.bodyLarge,
                                         )
@@ -139,7 +139,7 @@ class SettingsSearchScreen : Screen {
                             }
                         },
                     )
-                    Divider()
+                    HorizontalDivider()
                 }
             },
         ) { contentPadding ->
@@ -164,6 +164,8 @@ private fun SearchResult(
     onItemClick: (SearchResultItem) -> Unit,
 ) {
     if (searchKey.isEmpty()) return
+
+    val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
 
     val index = getIndex()
     val result by produceState<List<SearchResultItem>?>(initialValue = null, searchKey) {
@@ -200,7 +202,11 @@ private fun SearchResult(
                         SearchResultItem(
                             route = settingsData.route,
                             title = p.title,
-                            breadcrumbs = getLocalizedBreadcrumb(path = settingsData.title, node = categoryTitle),
+                            breadcrumbs = getLocalizedBreadcrumb(
+                                path = settingsData.title,
+                                node = categoryTitle,
+                                isLtr = isLtr,
+                            ),
                             highlightKey = p.title,
                         )
                     }
@@ -209,44 +215,47 @@ private fun SearchResult(
             .toList()
     }
 
-    Crossfade(targetState = result) {
-        LazyColumn(
-            modifier = modifier.fillMaxSize(),
-            state = listState,
-            contentPadding = contentPadding,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            when {
-                it == null -> {
-                    /* Don't show anything just yet */
-                }
-                // No result
-                it.isEmpty() -> item { EmptyScreen(stringResource(R.string.no_results_found)) }
-                // Show result list
-                else -> items(
-                    items = it,
-                    key = { i -> i.hashCode() },
-                ) { item ->
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onItemClick(item) }
-                            .padding(horizontal = 24.dp, vertical = 14.dp),
-                    ) {
-                        Text(
-                            text = item.title,
-                            overflow = TextOverflow.Ellipsis,
-                            maxLines = 1,
-                            fontWeight = FontWeight.Normal,
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Text(
-                            text = item.breadcrumbs,
-                            modifier = Modifier.paddingFromBaseline(top = 16.dp),
-                            maxLines = 1,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
+    Crossfade(
+        targetState = result,
+        label = "results",
+    ) {
+        when {
+            it == null -> {}
+            it.isEmpty() -> {
+                EmptyScreen(stringResource(MR.strings.no_results_found))
+            }
+            else -> {
+                LazyColumn(
+                    modifier = modifier.fillMaxSize(),
+                    state = listState,
+                    contentPadding = contentPadding,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    items(
+                        items = it,
+                        key = { i -> i.hashCode() },
+                    ) { item ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onItemClick(item) }
+                                .padding(horizontal = 24.dp, vertical = 14.dp),
+                        ) {
+                            Text(
+                                text = item.title,
+                                overflow = TextOverflow.Ellipsis,
+                                maxLines = 1,
+                                fontWeight = FontWeight.Normal,
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Text(
+                                text = item.breadcrumbs,
+                                modifier = Modifier.paddingFromBaseline(top = 16.dp),
+                                maxLines = 1,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                     }
                 }
             }
@@ -265,11 +274,11 @@ private fun getIndex() = settingScreens
         )
     }
 
-private fun getLocalizedBreadcrumb(path: String, node: String?): String {
+private fun getLocalizedBreadcrumb(path: String, node: String?, isLtr: Boolean): String {
     return if (node == null) {
         path
     } else {
-        if (Resources.getSystem().isLTR) {
+        if (isLtr) {
             // This locale reads left to right.
             "$path > $node"
         } else {
@@ -280,26 +289,25 @@ private fun getLocalizedBreadcrumb(path: String, node: String?): String {
 }
 
 private val settingScreens = listOf(
-    SettingsGeneralScreen(),
-    SettingsAppearanceScreen(),
-    SettingsLibraryScreen(),
-    SettingsReaderScreen(),
-    SettingsDownloadScreen(),
-    SettingsTrackingScreen(),
-    SettingsBrowseScreen(),
-    SettingsBackupScreen(),
-    SettingsSecurityScreen(),
-    SettingsAdvancedScreen(),
+    SettingsAppearanceScreen,
+    SettingsLibraryScreen,
+    SettingsReaderScreen,
+    SettingsDownloadScreen,
+    SettingsTrackingScreen,
+    SettingsBrowseScreen,
+    SettingsDataScreen,
+    SettingsSecurityScreen,
+    SettingsAdvancedScreen,
 )
 
 private data class SettingsData(
     val title: String,
-    val route: Screen,
+    val route: VoyagerScreen,
     val contents: List<Preference>,
 )
 
 private data class SearchResultItem(
-    val route: Screen,
+    val route: VoyagerScreen,
     val title: String,
     val breadcrumbs: String,
     val highlightKey: String,

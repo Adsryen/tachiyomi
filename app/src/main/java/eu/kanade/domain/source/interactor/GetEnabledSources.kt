@@ -1,14 +1,14 @@
 package eu.kanade.domain.source.interactor
 
-import eu.kanade.domain.source.model.Pin
-import eu.kanade.domain.source.model.Pins
-import eu.kanade.domain.source.model.Source
-import eu.kanade.domain.source.repository.SourceRepository
 import eu.kanade.domain.source.service.SourcePreferences
-import eu.kanade.tachiyomi.source.LocalSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import tachiyomi.domain.source.model.Pin
+import tachiyomi.domain.source.model.Pins
+import tachiyomi.domain.source.model.Source
+import tachiyomi.domain.source.repository.SourceRepository
+import tachiyomi.source.local.isLocal
 
 class GetEnabledSources(
     private val repository: SourceRepository,
@@ -24,7 +24,7 @@ class GetEnabledSources(
             repository.getSources(),
         ) { pinnedSourceIds, enabledLanguages, disabledSources, lastUsedSource, sources ->
             sources
-                .filter { it.lang in enabledLanguages || it.id == LocalSource.ID }
+                .filter { it.lang in enabledLanguages || it.isLocal() }
                 .filterNot { it.id.toString() in disabledSources }
                 .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
                 .flatMap {

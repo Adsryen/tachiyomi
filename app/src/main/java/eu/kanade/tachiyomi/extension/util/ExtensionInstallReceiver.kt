@@ -4,15 +4,18 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.Uri
+import androidx.core.content.ContextCompat
+import eu.kanade.tachiyomi.BuildConfig
 import eu.kanade.tachiyomi.extension.model.Extension
 import eu.kanade.tachiyomi.extension.model.LoadResult
-import eu.kanade.tachiyomi.util.lang.launchNow
-import eu.kanade.tachiyomi.util.system.logcat
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import logcat.LogPriority
+import tachiyomi.core.util.lang.launchNow
+import tachiyomi.core.util.system.logcat
 
 /**
  * Broadcast receiver that listens for the system's packages installed, updated or removed, and only
@@ -27,7 +30,7 @@ internal class ExtensionInstallReceiver(private val listener: Listener) :
      * Registers this broadcast receiver
      */
     fun register(context: Context) {
-        context.registerReceiver(this, filter)
+        ContextCompat.registerReceiver(context, this, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     /**
@@ -38,6 +41,9 @@ internal class ExtensionInstallReceiver(private val listener: Listener) :
             addAction(Intent.ACTION_PACKAGE_ADDED)
             addAction(Intent.ACTION_PACKAGE_REPLACED)
             addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addAction(ACTION_EXTENSION_ADDED)
+            addAction(ACTION_EXTENSION_REPLACED)
+            addAction(ACTION_EXTENSION_REMOVED)
             addDataScheme("package")
         }
 
@@ -49,18 +55,18 @@ internal class ExtensionInstallReceiver(private val listener: Listener) :
         if (intent == null) return
 
         when (intent.action) {
-            Intent.ACTION_PACKAGE_ADDED -> {
-                if (!isReplacing(intent)) {
-                    launchNow {
-                        when (val result = getExtensionFromIntent(context, intent)) {
-                            is LoadResult.Success -> listener.onExtensionInstalled(result.extension)
-                            is LoadResult.Untrusted -> listener.onExtensionUntrusted(result.extension)
-                            else -> {}
-                        }
+            Intent.ACTION_PACKAGE_ADDED, ACTION_EXTENSION_ADDED -> {
+                if (isReplacing(intent)) return
+
+                launchNow {
+                    when (val result = getExtensionFromIntent(context, intent)) {
+                        is LoadResult.Success -> listener.onExtensionInstalled(result.extension)
+                        is LoadResult.Untrusted -> listener.onExtensionUntrusted(result.extension)
+                        else -> {}
                     }
                 }
             }
-            Intent.ACTION_PACKAGE_REPLACED -> {
+            Intent.ACTION_PACKAGE_REPLACED, ACTION_EXTENSION_REPLACED -> {
                 launchNow {
                     when (val result = getExtensionFromIntent(context, intent)) {
                         is LoadResult.Success -> listener.onExtensionUpdated(result.extension)
@@ -70,12 +76,12 @@ internal class ExtensionInstallReceiver(private val listener: Listener) :
                     }
                 }
             }
-            Intent.ACTION_PACKAGE_REMOVED -> {
-                if (!isReplacing(intent)) {
-                    val pkgName = getPackageNameFromIntent(intent)
-                    if (pkgName != null) {
-                        listener.onPackageUninstalled(pkgName)
-                    }
+            Intent.ACTION_PACKAGE_REMOVED, ACTION_EXTENSION_REMOVED -> {
+                if (isReplacing(intent)) return
+
+                val pkgName = getPackageNameFromIntent(intent)
+                if (pkgName != null) {
+                    listener.onPackageUninstalled(pkgName)
                 }
             }
         }
@@ -102,7 +108,9 @@ internal class ExtensionInstallReceiver(private val listener: Listener) :
             logcat(LogPriority.WARN) { "Package name not found" }
             return LoadResult.Error
         }
-        return GlobalScope.async(Dispatchers.Default, CoroutineStart.DEFAULT) { ExtensionLoader.loadExtensionFromPkgName(context, pkgName) }.await()
+        return GlobalScope.async(Dispatchers.Default, CoroutineStart.DEFAULT) {
+            ExtensionLoader.loadExtensionFromPkgName(context, pkgName)
+        }.await()
     }
 
     /**
@@ -120,5 +128,31 @@ internal class ExtensionInstallReceiver(private val listener: Listener) :
         fun onExtensionUpdated(extension: Extension.Installed)
         fun onExtensionUntrusted(extension: Extension.Untrusted)
         fun onPackageUninstalled(pkgName: String)
+    }
+
+    companion object {
+        private const val ACTION_EXTENSION_ADDED = "${BuildConfig.APPLICATION_ID}.ACTION_EXTENSION_ADDED"
+        private const val ACTION_EXTENSION_REPLACED = "${BuildConfig.APPLICATION_ID}.ACTION_EXTENSION_REPLACED"
+        private const val ACTION_EXTENSION_REMOVED = "${BuildConfig.APPLICATION_ID}.ACTION_EXTENSION_REMOVED"
+
+        fun notifyAdded(context: Context, pkgName: String) {
+            notify(context, pkgName, ACTION_EXTENSION_ADDED)
+        }
+
+        fun notifyReplaced(context: Context, pkgName: String) {
+            notify(context, pkgName, ACTION_EXTENSION_REPLACED)
+        }
+
+        fun notifyRemoved(context: Context, pkgName: String) {
+            notify(context, pkgName, ACTION_EXTENSION_REMOVED)
+        }
+
+        private fun notify(context: Context, pkgName: String, action: String) {
+            Intent(action).apply {
+                data = Uri.parse("package:$pkgName")
+                `package` = context.packageName
+                context.sendBroadcast(this)
+            }
+        }
     }
 }

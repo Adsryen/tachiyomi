@@ -1,6 +1,5 @@
 package eu.kanade.presentation.browse.components
 
-import android.content.pm.PackageManager
 import android.util.DisplayMetrics
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
@@ -27,11 +26,14 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import coil.compose.AsyncImage
-import eu.kanade.domain.source.model.Source
+import eu.kanade.domain.source.model.icon
 import eu.kanade.presentation.util.rememberResourceBitmapPainter
 import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.extension.model.Extension
-import eu.kanade.tachiyomi.util.lang.withIOContext
+import eu.kanade.tachiyomi.extension.util.ExtensionLoader
+import tachiyomi.core.util.lang.withIOContext
+import tachiyomi.domain.source.model.Source
+import tachiyomi.source.local.isLocal
 
 private val defaultModifier = Modifier
     .height(40.dp)
@@ -60,9 +62,16 @@ fun SourceIcon(
                 modifier = modifier.then(defaultModifier),
             )
         }
+        source.isLocal() -> {
+            Image(
+                painter = painterResource(R.mipmap.ic_local_source),
+                contentDescription = null,
+                modifier = modifier.then(defaultModifier),
+            )
+        }
         else -> {
             Image(
-                painter = painterResource(id = R.mipmap.ic_local_source),
+                painter = painterResource(R.mipmap.ic_default_source),
                 contentDescription = null,
                 modifier = modifier.then(defaultModifier),
             )
@@ -90,14 +99,14 @@ fun ExtensionIcon(
         is Extension.Installed -> {
             val icon by extension.getIcon(density)
             when (icon) {
-                Result.Error -> Image(
-                    bitmap = ImageBitmap.imageResource(id = R.mipmap.ic_local_source),
-                    contentDescription = null,
-                    modifier = modifier,
-                )
                 Result.Loading -> Box(modifier = modifier)
                 is Result.Success -> Image(
                     bitmap = (icon as Result.Success<ImageBitmap>).value,
+                    contentDescription = null,
+                    modifier = modifier,
+                )
+                Result.Error -> Image(
+                    bitmap = ImageBitmap.imageResource(id = R.mipmap.ic_default_source),
                     contentDescription = null,
                     modifier = modifier,
                 )
@@ -118,7 +127,7 @@ private fun Extension.getIcon(density: Int = DisplayMetrics.DENSITY_DEFAULT): St
     return produceState<Result<ImageBitmap>>(initialValue = Result.Loading, this) {
         withIOContext {
             value = try {
-                val appInfo = context.packageManager.getApplicationInfo(pkgName, PackageManager.GET_META_DATA)
+                val appInfo = ExtensionLoader.getExtensionPackageInfoFromPkgName(context, pkgName)!!.applicationInfo
                 val appResources = context.packageManager.getResourcesForApplication(appInfo)
                 Result.Success(
                     appResources.getDrawableForDensity(appInfo.icon, density, null)!!
@@ -133,7 +142,7 @@ private fun Extension.getIcon(density: Int = DisplayMetrics.DENSITY_DEFAULT): St
 }
 
 sealed class Result<out T> {
-    object Loading : Result<Nothing>()
-    object Error : Result<Nothing>()
+    data object Loading : Result<Nothing>()
+    data object Error : Result<Nothing>()
     data class Success<out T>(val value: T) : Result<T>()
 }

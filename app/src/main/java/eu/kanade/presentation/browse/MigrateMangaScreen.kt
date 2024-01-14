@@ -4,31 +4,24 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import eu.kanade.domain.manga.model.Manga
 import eu.kanade.presentation.components.AppBar
-import eu.kanade.presentation.components.EmptyScreen
-import eu.kanade.presentation.components.FastScrollLazyColumn
-import eu.kanade.presentation.components.LoadingScreen
-import eu.kanade.presentation.components.Scaffold
 import eu.kanade.presentation.manga.components.BaseMangaListItem
-import eu.kanade.tachiyomi.R
-import eu.kanade.tachiyomi.ui.browse.migration.manga.MigrateMangaPresenter
-import eu.kanade.tachiyomi.ui.browse.migration.manga.MigrateMangaPresenter.Event
-import eu.kanade.tachiyomi.util.system.toast
-import kotlinx.coroutines.flow.collectLatest
+import eu.kanade.tachiyomi.ui.browse.migration.manga.MigrateMangaScreenModel
+import tachiyomi.domain.manga.model.Manga
+import tachiyomi.i18n.MR
+import tachiyomi.presentation.core.components.FastScrollLazyColumn
+import tachiyomi.presentation.core.components.material.Scaffold
+import tachiyomi.presentation.core.screens.EmptyScreen
 
 @Composable
 fun MigrateMangaScreen(
     navigateUp: () -> Unit,
     title: String?,
-    presenter: MigrateMangaPresenter,
+    state: MigrateMangaScreenModel.State,
     onClickItem: (Manga) -> Unit,
     onClickCover: (Manga) -> Unit,
 ) {
-    val context = LocalContext.current
     Scaffold(
         topBar = { scrollBehavior ->
             AppBar(
@@ -38,44 +31,34 @@ fun MigrateMangaScreen(
             )
         },
     ) { contentPadding ->
-        when {
-            presenter.isLoading -> LoadingScreen()
-            presenter.isEmpty -> EmptyScreen(
-                textResource = R.string.empty_screen,
+        if (state.isEmpty) {
+            EmptyScreen(
+                stringRes = MR.strings.empty_screen,
                 modifier = Modifier.padding(contentPadding),
             )
-            else -> {
-                MigrateMangaContent(
-                    contentPadding = contentPadding,
-                    state = presenter,
-                    onClickItem = onClickItem,
-                    onClickCover = onClickCover,
-                )
-            }
+            return@Scaffold
         }
-    }
-    LaunchedEffect(Unit) {
-        presenter.events.collectLatest { event ->
-            when (event) {
-                Event.FailedFetchingFavorites -> {
-                    context.toast(R.string.internal_error)
-                }
-            }
-        }
+
+        MigrateMangaContent(
+            contentPadding = contentPadding,
+            state = state,
+            onClickItem = onClickItem,
+            onClickCover = onClickCover,
+        )
     }
 }
 
 @Composable
 private fun MigrateMangaContent(
     contentPadding: PaddingValues,
-    state: MigrateMangaState,
+    state: MigrateMangaScreenModel.State,
     onClickItem: (Manga) -> Unit,
     onClickCover: (Manga) -> Unit,
 ) {
     FastScrollLazyColumn(
         contentPadding = contentPadding,
     ) {
-        items(state.items) { manga ->
+        items(state.titles) { manga ->
             MigrateMangaItem(
                 manga = manga,
                 onClickItem = onClickItem,
@@ -87,10 +70,10 @@ private fun MigrateMangaContent(
 
 @Composable
 private fun MigrateMangaItem(
-    modifier: Modifier = Modifier,
     manga: Manga,
     onClickItem: (Manga) -> Unit,
     onClickCover: (Manga) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     BaseMangaListItem(
         modifier = modifier,

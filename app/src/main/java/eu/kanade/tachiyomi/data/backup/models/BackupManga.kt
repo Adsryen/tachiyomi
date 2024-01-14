@@ -1,13 +1,9 @@
 package eu.kanade.tachiyomi.data.backup.models
 
-import eu.kanade.domain.manga.model.Manga
-import eu.kanade.tachiyomi.data.database.models.ChapterImpl
-import eu.kanade.tachiyomi.data.database.models.MangaImpl
-import eu.kanade.tachiyomi.data.database.models.TrackImpl
 import eu.kanade.tachiyomi.source.model.UpdateStrategy
-import eu.kanade.tachiyomi.ui.reader.setting.ReadingModeType
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
+import tachiyomi.domain.manga.model.Manga
 
 @Suppress("DEPRECATION")
 @Serializable
@@ -40,57 +36,27 @@ data class BackupManga(
     @ProtoNumber(103) var viewer_flags: Int? = null,
     @ProtoNumber(104) var history: List<BackupHistory> = emptyList(),
     @ProtoNumber(105) var updateStrategy: UpdateStrategy = UpdateStrategy.ALWAYS_UPDATE,
+    @ProtoNumber(106) var lastModifiedAt: Long = 0,
+    @ProtoNumber(107) var favoriteModifiedAt: Long? = null,
 ) {
-    fun getMangaImpl(): MangaImpl {
-        return MangaImpl().apply {
-            url = this@BackupManga.url
-            title = this@BackupManga.title
-            artist = this@BackupManga.artist
-            author = this@BackupManga.author
-            description = this@BackupManga.description
-            genre = this@BackupManga.genre.joinToString()
-            status = this@BackupManga.status
-            thumbnail_url = this@BackupManga.thumbnailUrl
-            favorite = this@BackupManga.favorite
-            source = this@BackupManga.source
-            date_added = this@BackupManga.dateAdded
-            viewer_flags = this@BackupManga.viewer_flags ?: this@BackupManga.viewer
-            chapter_flags = this@BackupManga.chapterFlags
-            update_strategy = this@BackupManga.updateStrategy
-        }
-    }
-
-    fun getChaptersImpl(): List<ChapterImpl> {
-        return chapters.map {
-            it.toChapterImpl()
-        }
-    }
-
-    fun getTrackingImpl(): List<TrackImpl> {
-        return tracking.map {
-            it.getTrackingImpl()
-        }
-    }
-
-    companion object {
-        fun copyFrom(manga: Manga): BackupManga {
-            return BackupManga(
-                url = manga.url,
-                title = manga.title,
-                artist = manga.artist,
-                author = manga.author,
-                description = manga.description,
-                genre = manga.genre ?: emptyList(),
-                status = manga.status.toInt(),
-                thumbnailUrl = manga.thumbnailUrl,
-                favorite = manga.favorite,
-                source = manga.source,
-                dateAdded = manga.dateAdded,
-                viewer = (manga.viewerFlags.toInt() and ReadingModeType.MASK),
-                viewer_flags = manga.viewerFlags.toInt(),
-                chapterFlags = manga.chapterFlags.toInt(),
-                updateStrategy = manga.updateStrategy,
-            )
-        }
+    fun getMangaImpl(): Manga {
+        return Manga.create().copy(
+            url = this@BackupManga.url,
+            title = this@BackupManga.title,
+            artist = this@BackupManga.artist,
+            author = this@BackupManga.author,
+            description = this@BackupManga.description,
+            genre = this@BackupManga.genre,
+            status = this@BackupManga.status.toLong(),
+            thumbnailUrl = this@BackupManga.thumbnailUrl,
+            favorite = this@BackupManga.favorite,
+            source = this@BackupManga.source,
+            dateAdded = this@BackupManga.dateAdded,
+            viewerFlags = (this@BackupManga.viewer_flags ?: this@BackupManga.viewer).toLong(),
+            chapterFlags = this@BackupManga.chapterFlags.toLong(),
+            updateStrategy = this@BackupManga.updateStrategy,
+            lastModifiedAt = this@BackupManga.lastModifiedAt,
+            favoriteModifiedAt = this@BackupManga.favoriteModifiedAt,
+        )
     }
 }

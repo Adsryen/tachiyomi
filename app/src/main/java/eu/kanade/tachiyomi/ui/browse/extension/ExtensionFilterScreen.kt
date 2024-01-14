@@ -6,21 +6,21 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import cafe.adriel.voyager.core.model.rememberScreenModel
-import cafe.adriel.voyager.core.screen.Screen
+import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import eu.kanade.presentation.browse.ExtensionFilterScreen
-import eu.kanade.presentation.components.LoadingScreen
-import eu.kanade.presentation.util.LocalRouter
-import eu.kanade.tachiyomi.R
-import eu.kanade.tachiyomi.util.system.toast
+import eu.kanade.presentation.util.Screen
 import kotlinx.coroutines.flow.collectLatest
+import tachiyomi.core.i18n.stringResource
+import tachiyomi.i18n.MR
+import tachiyomi.presentation.core.screens.LoadingScreen
 
-class ExtensionFilterScreen : Screen {
+class ExtensionFilterScreen : Screen() {
 
     @Composable
     override fun Content() {
         val context = LocalContext.current
-        val router = LocalRouter.currentOrThrow
+        val navigator = LocalNavigator.currentOrThrow
         val screenModel = rememberScreenModel { ExtensionFilterScreenModel() }
         val state by screenModel.state.collectAsState()
 
@@ -32,16 +32,16 @@ class ExtensionFilterScreen : Screen {
         val successState = state as ExtensionFilterState.Success
 
         ExtensionFilterScreen(
-            navigateUp = router::popCurrentController,
+            navigateUp = navigator::pop,
             state = successState,
-            onClickToggle = { screenModel.toggle(it) },
+            onClickToggle = screenModel::toggle,
         )
 
         LaunchedEffect(Unit) {
             screenModel.events.collectLatest {
                 when (it) {
                     ExtensionFilterEvent.FailedFetchingLanguages -> {
-                        context.toast(R.string.internal_error)
+                        context.stringResource(MR.strings.internal_error)
                     }
                 }
             }
